@@ -11,7 +11,7 @@ import {
   updateDoc, 
   collection, 
   addDoc 
-} from "firebase/firestore";
+} from "firebase/firestore/lite";
 
 const app = express();
 const PORT = 3000;
@@ -272,15 +272,21 @@ app.get("/api/drive/config", async (req, res) => {
 // Save client ID & Client Secret
 app.post("/api/drive/save-credentials", async (req, res) => {
   const { clientId, clientSecret } = req.body;
+  
+  console.log("===[DEBUG SAVE CREDENTIALS]===");
+  console.log("Request body:", { hasClientId: !!clientId, hasClientSecret: !!clientSecret });
+
   if (!clientId || !clientSecret) {
     return res.status(400).json({ error: "Client ID dan Client Secret wajib diisi." });
   }
 
   try {
     const settingsRef = doc(db, "settings", "google_drive");
+    console.log("Fetching existing settings from Firestore...");
     const snap = await getDoc(settingsRef);
     
     const existingData = snap.exists() ? snap.data() : {};
+    console.log("Existing settings loaded. Merging with new credentials...");
     
     await setDoc(settingsRef, {
       ...existingData,
@@ -288,9 +294,15 @@ app.post("/api/drive/save-credentials", async (req, res) => {
       clientSecret
     }, { merge: true });
 
+    console.log("Credentials successfully saved to Firestore!");
     res.json({ success: true, message: "Kredensial Google OAuth berhasil disimpan." });
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    console.error("Kesalahan menyimpan kredensial FATAL:", error);
+    res.status(500).json({ 
+      error: error.message, 
+      stack: error.stack,
+      success: false 
+    });
   }
 });
 
