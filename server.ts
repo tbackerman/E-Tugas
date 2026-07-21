@@ -253,7 +253,7 @@ app.get("/api/drive/config", async (req, res) => {
     if (snap.exists()) {
       const data = snap.data();
       res.json({
-        connected: true,
+        connected: !!data.refreshToken,
         email: data.email || "Akun Terhubung",
         clientId: data.clientId,
         mainFolderId: data.mainFolderId,
