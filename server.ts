@@ -301,33 +301,56 @@ app.post("/api/drive/token", async (req, res) => {
     return res.status(400).json({ error: "Code dan Redirect URI wajib disediakan." });
   }
 
+  console.log("===[DEBUG DRIVE TOKEN]===");
+  console.log("Step 1: Received request body with redirectUri:", redirectUri);
+
   try {
     const settingsRef = doc(db, "settings", "google_drive");
+    console.log("Step 2: Fetching settings from Firestore...");
     const snap = await getDoc(settingsRef);
     if (!snap.exists()) {
+      console.log("Step 2 Error: Settings document not found in Firestore.");
       return res.status(400).json({ error: "Harap simpan Client ID dan Client Secret terlebih dahulu." });
     }
 
     const config = snap.data();
     const { clientId, clientSecret } = config;
+    console.log("Step 3: Credentials loaded from Firestore:", { clientIdExists: !!clientId, clientSecretExists: !!clientSecret });
 
-    // Exchange auth code for tokens
+    if (!clientId || !clientSecret) {
+      console.log("Step 3 Error: Client ID or Client Secret is missing in Firestore settings.");
+      return res.status(400).json({ error: "Kredensial Client ID atau Client Secret tidak lengkap di database." });
+    }
+
+    console.log("Step 4: Exchanging auth code with Google OAuth API...");
+    const params = new URLSearchParams({
+      code,
+      client_id: clientId,
+      client_secret: clientSecret,
+      redirect_uri: redirectUri,
+      grant_type: "authorization_code"
+    });
+    
+    console.log("Step 4 Params payload preview:", {
+      code_preview: code.substring(0, 15) + "...",
+      client_id_preview: clientId.substring(0, 15) + "...",
+      redirect_uri: redirectUri,
+      grant_type: "authorization_code"
+    });
+
     const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded"
       },
-      body: new URLSearchParams({
-        code,
-        client_id: clientId,
-        client_secret: clientSecret,
-        redirect_uri: redirectUri,
-        grant_type: "authorization_code"
-      })
+      body: params.toString()
     });
+
+    console.log("Step 4 Response Status:", tokenResponse.status, tokenResponse.statusText);
 
     if (!tokenResponse.ok) {
       const errText = await tokenResponse.text();
+      console.log("Step 4 Error response from Google OAuth API:", errText);
       return res.status(400).json({ error: `Gagal menukar kode otorisasi Google: ${errText}` });
     }
 
@@ -335,14 +358,17 @@ app.post("/api/drive/token", async (req, res) => {
     const accessToken = tokenData.access_token;
     const refreshToken = tokenData.refresh_token || config.refreshToken;
     const expiresAt = Date.now() + (tokenData.expires_in * 1000);
+    console.log("Step 5: Tokens received from Google:", { hasAccessToken: !!accessToken, hasRefreshToken: !!refreshToken, expires_in: tokenData.expires_in });
 
     if (!refreshToken) {
+      console.log("Step 5 Error: No refresh token was returned by Google or found in Firestore config.");
       return res.status(400).json({ 
         error: "Google tidak mengirimkan Refresh Token. Harap hapus izin aplikasi ini dari akun Google Anda dan hubungkan kembali untuk memberikan persetujuan penuh." 
       });
     }
 
     // Get email from UserInfo API
+    console.log("Step 6: Fetching Google account email...");
     const infoResponse = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
       headers: { "Authorization": `Bearer ${accessToken}` }
     });
@@ -350,15 +376,25 @@ app.post("/api/drive/token", async (req, res) => {
     if (infoResponse.ok) {
       const infoData: any = await infoResponse.json();
       email = infoData.email;
+      console.log("Step 6 Success: Account email is:", email);
+    } else {
+      const errText = await infoResponse.text();
+      console.log("Step 6 Warning: Failed to fetch user email:", infoResponse.status, errText);
     }
 
     // Create main master folder inside Google Drive
     let mainFolderId = config.mainFolderId;
+    console.log("Step 7: Checking Google Drive main folder configuration...");
     if (!mainFolderId) {
+      console.log("Step 7: Main folder is not configured. Creating new folder 'Pengumpulan Tugas FIP' inside Google Drive...");
       mainFolderId = await createDriveFolder(accessToken, "Pengumpulan Tugas FIP");
+      console.log("Step 7 Success: Created new folder in Google Drive. Folder ID:", mainFolderId);
+    } else {
+      console.log("Step 7: Main folder already configured with ID:", mainFolderId);
     }
 
     // Save tokens and settings in Firestore
+    console.log("Step 8: Saving connected settings and tokens to Firestore...");
     await setDoc(settingsRef, {
       clientId,
       clientSecret,
@@ -369,11 +405,18 @@ app.post("/api/drive/token", async (req, res) => {
       mainFolderId,
       connectedAt: new Date().toISOString()
     });
+    console.log("Step 8 Success: Google Drive configuration saved to Firestore!");
 
     res.json({ success: true, email, mainFolderId });
   } catch (error: any) {
-    console.error("Kesalahan pertukaran token Google:", error);
-    res.status(500).json({ error: error.message });
+    console.error("Kesalahan pertukaran token Google FATAL:", error);
+    const errMsg = error instanceof Error ? error.message : (error?.message || String(error));
+    const errStack = error instanceof Error ? error.stack : undefined;
+    res.status(500).json({ 
+      error: errMsg, 
+      stack: errStack,
+      success: false 
+    });
   }
 });
 
