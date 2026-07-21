@@ -1383,23 +1383,56 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
                     <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">
                       1. Redirect URI Aplikasi (Salin ke Google Console)
                     </label>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        readOnly
-                        value={window.location.origin}
-                        className="block w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 px-3 text-xs text-slate-600 font-mono focus:outline-none"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          navigator.clipboard.writeText(window.location.origin);
-                          alert('Redirect URI berhasil disalin ke papan klip!');
-                        }}
-                        className="px-3.5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-xs border border-slate-200 transition flex-shrink-0 cursor-pointer"
-                      >
-                        Salin
-                      </button>
+                    <div className="space-y-2">
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          readOnly
+                          value={window.location.origin}
+                          className="block w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 px-3 text-xs text-slate-600 font-mono focus:outline-none"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard.writeText(window.location.origin);
+                            alert('Redirect URI berhasil disalin ke papan klip!');
+                          }}
+                          className="px-3.5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-xs border border-slate-200 transition flex-shrink-0 cursor-pointer"
+                        >
+                          Salin
+                        </button>
+                      </div>
+
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          readOnly
+                          value={`${window.location.origin}/`}
+                          className="block w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 px-3 text-xs text-slate-600 font-mono focus:outline-none"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard.writeText(`${window.location.origin}/`);
+                            alert('Redirect URI (dengan slash) berhasil disalin ke papan klip!');
+                          }}
+                          className="px-3.5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-xs border border-slate-200 transition flex-shrink-0 cursor-pointer"
+                        >
+                          Salin
+                        </button>
+                      </div>
+
+                      <div className="p-3 bg-amber-50 rounded-xl border border-amber-100 text-[11px] text-amber-800 space-y-1.5 mt-2">
+                        <p className="font-bold flex items-center gap-1">
+                          <AlertCircle className="h-3.5 w-3.5 text-amber-600" />
+                          PENTING UNTUK DIKETAHUI (Mencegah Error 400: redirect_uri_mismatch):
+                        </p>
+                        <ul className="list-disc list-inside space-y-1 ml-1 text-[11px] leading-relaxed">
+                          <li>Anda wajib menyalin dan memasukkan <strong>KEDUA</strong> URL di atas ke dalam kolom <strong>"Authorized redirect URIs"</strong> (URLs pengalihan sah) di Google Cloud Console.</li>
+                          <li>Jangan memasukkannya hanya ke dalam "Authorized JavaScript origins" (Asal JavaScript sah) karena Google akan memblokirnya.</li>
+                          <li><strong>Perlu Waktu Sinkronisasi:</strong> Google memerlukan waktu sekitar <strong>3 hingga 10 menit</strong> untuk menerapkan perubahan pengaturan redirect URI di sistem mereka setelah Anda mengeklik tombol "Save" di Google Cloud Console. Harap tunggu sebentar sebelum mencoba mengeklik tombol hubungkan kembali.</li>
+                        </ul>
+                      </div>
                     </div>
                   </div>
 
